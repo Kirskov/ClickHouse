@@ -24,6 +24,15 @@ struct NATSConfiguration
     int reconnect_wait;
 
     bool secure;
+
+    // mTLS configuration
+    String ca_cert_file;
+    String client_cert_file;
+    String client_key_file;
+    String tls_min_version;  // "1.2" or "1.3"
+    String cipher_list;      // Colon-separated list in OpenSSL notation
+    String curve_list;       // Colon-separated list of elliptic curves
+    bool prefer_server_ciphers;  // Let server choose cipher/curve from client's list
 };
 
 using NATSOptionsPtr = std::unique_ptr<natsOptions, decltype(&natsOptions_Destroy)>;

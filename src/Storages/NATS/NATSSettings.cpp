@@ -40,6 +40,13 @@ namespace ErrorCodes
     DECLARE(UInt64, nats_startup_connect_tries, 5, "Number of connect tries at startup", 0) \
     DECLARE(UInt64, nats_max_rows_per_message, 1, "The maximum number of rows produced in one message for row-based formats.", 0) \
     DECLARE(StreamingHandleErrorMode, nats_handle_error_mode, StreamingHandleErrorMode::DEFAULT, "How to handle errors for NATS engine. Possible values: default (throw an exception after nats_skip_broken_messages broken messages), stream (save broken messages and errors in virtual columns _raw_message, _error).", 0) \
+    DECLARE(String, nats_ca_cert_file, "", "Path to CA certificate file for TLS verification", 0) \
+    DECLARE(String, nats_client_cert_file, "", "Path to client certificate file for mTLS authentication", 0) \
+    DECLARE(String, nats_client_key_file, "", "Path to client private key file for mTLS authentication", 0) \
+    DECLARE(String, nats_tls_min_version, "1.2", "Minimum TLS version (1.2 or 1.3)", 0) \
+    DECLARE(String, nats_cipher_list, "", "Allowed cipher list (in OpenSSL notation, colon-separated)", 0) \
+    DECLARE(String, nats_curve_list, "", "Allowed elliptic curve list (colon-separated)", 0) \
+    DECLARE(Bool, nats_prefer_server_ciphers, false, "Let server choose cipher/curve from client's list based on server preference", 0) \
 
 #define OBSOLETE_NATS_SETTINGS(M, ALIAS) \
     MAKE_OBSOLETE(M, Char, nats_row_delimiter, '\0') \

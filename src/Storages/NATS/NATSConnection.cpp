@@ -5,12 +5,69 @@
 
 #include <boost/algorithm/string/join.hpp>
 
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
 
 namespace DB
 {
 
 /// disconnectedCallback may be called after connection destroy
 LoggerPtr NATSConnection::callback_logger = getLogger("NATSConnection callback");
+
+/// SSL/TLS context configuration callback
+static natsStatus configureTLSContext(SSL_CTX* ctx, void* closure)
+{
+    auto* config = static_cast<const NATSConfiguration*>(closure);
+
+    // Configure TLS version
+    if (!config->tls_min_version.empty())
+    {
+        if (config->tls_min_version == "1.3")
+        {
+            SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION);
+        }
+        else if (config->tls_min_version == "1.2")
+        {
+            SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION);
+        }
+    }
+
+    // Configure cipher list (OpenSSL notation, colon-separated)
+    if (!config->cipher_list.empty())
+    {
+        // Set TLS 1.2 and below ciphers
+        if (SSL_CTX_set_cipher_list(ctx, config->cipher_list.c_str()) != 1)
+        {
+            return NATS_SSL_ERROR;
+        }
+        // Also try to set TLS 1.3 ciphersuites
+        SSL_CTX_set_ciphersuites(ctx, config->cipher_list.c_str());
+    }
+
+    // Configure elliptic curves (colon-separated)
+    if (!config->curve_list.empty())
+    {
+        if (SSL_CTX_set1_groups_list(ctx, config->curve_list.c_str()) != 1)
+        {
+            // Fallback for older OpenSSL versions
+            #ifndef OPENSSL_NO_EC
+            if (SSL_CTX_set1_curves_list(ctx, config->curve_list.c_str()) != 1)
+            {
+                return NATS_SSL_ERROR;
+            }
+            #endif
+        }
+    }
+
+    // Configure server cipher preference
+    if (config->prefer_server_ciphers)
+    {
+        SSL_CTX_set_options(ctx, SSL_OP_CIPHER_SERVER_PREFERENCE);
+    }
+
+    return NATS_OK;
+}
 
 NATSConnection::NATSConnection(const NATSConfiguration & configuration_, LoggerPtr log_, NATSOptionsPtr options_)
     : configuration(configuration_)
@@ -28,6 +85,34 @@ NATSConnection::NATSConnection(const NATSConfiguration & configuration_, LoggerP
     if (configuration.secure)
     {
         natsOptions_SetSecure(options.get(), true);
+
+        // Configure mTLS if certificate files are provided
+        if (!configuration.ca_cert_file.empty())
+        {
+            LOG_DEBUG(log, "Setting CA certificate file: {}", configuration.ca_cert_file);
+            natsOptions_LoadCATrustedCertificates(options.get(), configuration.ca_cert_file.c_str());
+        }
+
+        if (!configuration.client_cert_file.empty() && !configuration.client_key_file.empty())
+        {
+            LOG_DEBUG(log, "Setting client certificate and key files for mTLS");
+            natsOptions_LoadCertificatesChain(
+                options.get(),
+                configuration.client_cert_file.c_str(),
+                configuration.client_key_file.c_str());
+        }
+
+        // Set SSL/TLS context callback for advanced TLS configuration
+        // This allows us to configure TLS version, cipher list, and curves using OpenSSL directly
+        if (!configuration.tls_min_version.empty() || !configuration.cipher_list.empty() || !configuration.curve_list.empty() || configuration.prefer_server_ciphers)
+        {
+            LOG_DEBUG(log, "Configuring advanced TLS settings - Version: {}, Cipher list: {}, Curve list: {}, Prefer server ciphers: {}",
+                     configuration.tls_min_version, configuration.cipher_list, configuration.curve_list, configuration.prefer_server_ciphers);
+
+            // Pass the configuration as closure to the SSL context callback
+            natsOptions_SetSSLCtx(options.get(), const_cast<NATSConfiguration*>(&configuration));
+            natsOptions_SetSSLCtxCB(options.get(), configureTLSContext, const_cast<NATSConfiguration*>(&configuration));
+        }
     }
 
     // use CLICKHOUSE_NATS_TLS_SECURE=0 env var to skip TLS verification of server cert
@@ -129,15 +214,15 @@ bool NATSConnection::isClosedImpl(const Lock &) const
 
 void NATSConnection::connectImpl(const Lock &)
 {
-    natsConnection * new_conection = nullptr;
-    natsStatus status = natsConnection_Connect(&new_conection, options.get());
+    natsConnection * new_connection = nullptr;
+    natsStatus status = natsConnection_Connect(&new_connection, options.get());
     if (status != NATS_OK)
     {
         LOG_DEBUG(log, "New connection to {} failed. Nats status text: {}. Last error message: {}",
                   connectionInfoForLog(), natsStatus_GetText(status), nats_GetLastError(nullptr));
         return;
     }
-    connection.reset(new_conection);
+    connection.reset(new_connection);
 
     LOG_DEBUG(log, "New connection {} is connected to {}", static_cast<void*>(this), connectionInfoForLog());
 }

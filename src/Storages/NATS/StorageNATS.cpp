@@ -70,6 +70,13 @@ namespace NATSSetting
     extern const NATSSettingsString nats_url;
     extern const NATSSettingsString nats_stream;
     extern const NATSSettingsString nats_username;
+    extern const NATSSettingsString nats_ca_cert_file;
+    extern const NATSSettingsString nats_client_cert_file;
+    extern const NATSSettingsString nats_client_key_file;
+    extern const NATSSettingsString nats_tls_min_version;
+    extern const NATSSettingsString nats_cipher_list;
+    extern const NATSSettingsString nats_curve_list;
+    extern const NATSSettingsBool nats_prefer_server_ciphers;
 }
 
 static const uint32_t QUEUE_SIZE = 100000;
@@ -112,6 +119,14 @@ StorageNATS::StorageNATS(
     auto nats_token = getContext()->getMacros()->expand((*nats_settings)[NATSSetting::nats_token]);
     auto nats_credential_file = getContext()->getMacros()->expand((*nats_settings)[NATSSetting::nats_credential_file]);
 
+    auto nats_ca_cert_file = getContext()->getMacros()->expand((*nats_settings)[NATSSetting::nats_ca_cert_file]);
+    auto nats_client_cert_file = getContext()->getMacros()->expand((*nats_settings)[NATSSetting::nats_client_cert_file]);
+    auto nats_client_key_file = getContext()->getMacros()->expand((*nats_settings)[NATSSetting::nats_client_key_file]);
+    auto nats_tls_min_version = getContext()->getMacros()->expand((*nats_settings)[NATSSetting::nats_tls_min_version]);
+    auto nats_cipher_list = getContext()->getMacros()->expand((*nats_settings)[NATSSetting::nats_cipher_list]);
+    auto nats_curve_list = getContext()->getMacros()->expand((*nats_settings)[NATSSetting::nats_curve_list]);
+    auto nats_prefer_server_ciphers = (*nats_settings)[NATSSetting::nats_prefer_server_ciphers].value;
+
     configuration =
     {
         .url = getContext()->getMacros()->expand((*nats_settings)[NATSSetting::nats_url]),
@@ -122,7 +137,14 @@ StorageNATS::StorageNATS(
         .credential_file = nats_credential_file.empty() ? getContext()->getConfigRef().getString("nats.credential_file", "") : nats_credential_file,
         .max_connect_tries = static_cast<UInt64>((*nats_settings)[NATSSetting::nats_startup_connect_tries].value),
         .reconnect_wait = static_cast<int>((*nats_settings)[NATSSetting::nats_reconnect_wait].value),
-        .secure = (*nats_settings)[NATSSetting::nats_secure].value
+        .secure = (*nats_settings)[NATSSetting::nats_secure].value,
+        .ca_cert_file = nats_ca_cert_file.empty() ? getContext()->getConfigRef().getString("nats.caConfig", "") : nats_ca_cert_file,
+        .client_cert_file = nats_client_cert_file.empty() ? getContext()->getConfigRef().getString("nats.certificateFile", "") : nats_client_cert_file,
+        .client_key_file = nats_client_key_file.empty() ? getContext()->getConfigRef().getString("nats.privateKeyFile", "") : nats_client_key_file,
+        .tls_min_version = nats_tls_min_version.empty() ? getContext()->getConfigRef().getString("nats.minProtocolVersion", "1.2") : nats_tls_min_version,
+        .cipher_list = nats_cipher_list.empty() ? getContext()->getConfigRef().getString("nats.cipherList", "") : nats_cipher_list,
+        .curve_list = nats_curve_list.empty() ? getContext()->getConfigRef().getString("nats.curveList", "") : nats_curve_list,
+        .prefer_server_ciphers = nats_prefer_server_ciphers ? nats_prefer_server_ciphers : getContext()->getConfigRef().getBool("nats.preferServerCiphers", false)
     };
 
     StorageInMemoryMetadata storage_metadata;
