@@ -34,7 +34,6 @@ set(SRCS
     "${NATS_IO_SOURCE_DIR}/jsm.c"
     "${NATS_IO_SOURCE_DIR}/kv.c"
     "${NATS_IO_SOURCE_DIR}/msg.c"
-    "${NATS_IO_SOURCE_DIR}/mtls_helper.c"
     "${NATS_IO_SOURCE_DIR}/nats.c"
     "${NATS_IO_SOURCE_DIR}/natstime.c"
     "${NATS_IO_SOURCE_DIR}/nkeys.c"
