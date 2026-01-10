@@ -5,9 +5,6 @@
 
 #include <boost/algorithm/string/join.hpp>
 
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-
 
 namespace DB
 {
@@ -15,64 +12,10 @@ namespace DB
 /// disconnectedCallback may be called after connection destroy
 LoggerPtr NATSConnection::callback_logger = getLogger("NATSConnection callback");
 
-/// SSL/TLS context configuration callback
-static natsStatus configureTLSContext(SSL_CTX* ctx, void* closure)
-{
-    auto* config = static_cast<const NATSConfiguration*>(closure);
-
-    // Configure TLS version
-    if (!config->tls_min_version.empty())
-    {
-        if (config->tls_min_version == "1.3")
-        {
-            SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION);
-        }
-        else if (config->tls_min_version == "1.2")
-        {
-            SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION);
-        }
-    }
-
-    // Configure cipher list (OpenSSL notation, colon-separated)
-    if (!config->cipher_list.empty())
-    {
-        // Set TLS 1.2 and below ciphers
-        if (SSL_CTX_set_cipher_list(ctx, config->cipher_list.c_str()) != 1)
-        {
-            return NATS_SSL_ERROR;
-        }
-        // Also try to set TLS 1.3 ciphersuites
-        SSL_CTX_set_ciphersuites(ctx, config->cipher_list.c_str());
-    }
-
-    // Configure elliptic curves (colon-separated)
-    if (!config->curve_list.empty())
-    {
-        if (SSL_CTX_set1_groups_list(ctx, config->curve_list.c_str()) != 1)
-        {
-            // Fallback for older OpenSSL versions
-            #ifndef OPENSSL_NO_EC
-            if (SSL_CTX_set1_curves_list(ctx, config->curve_list.c_str()) != 1)
-            {
-                return NATS_SSL_ERROR;
-            }
-            #endif
-        }
-    }
-
-    // Configure server cipher preference
-    if (config->prefer_server_ciphers)
-    {
-        SSL_CTX_set_options(ctx, SSL_OP_CIPHER_SERVER_PREFERENCE);
-    }
-
-    return NATS_OK;
-}
-
 NATSConnection::NATSConnection(const NATSConfiguration & configuration_, LoggerPtr log_, NATSOptionsPtr options_)
     : configuration(configuration_)
-    , log(std::move(log_))
-    , options(std::move(options_))
+    , log(::std::move(log_))
+    , options(::std::move(options_))
     , connection(nullptr, &natsConnection_Destroy)
 {
     if (!configuration.username.empty() && !configuration.password.empty())
@@ -102,22 +45,29 @@ NATSConnection::NATSConnection(const NATSConfiguration & configuration_, LoggerP
                 configuration.client_key_file.c_str());
         }
 
-        // Set SSL/TLS context callback for advanced TLS configuration
-        // This allows us to configure TLS version, cipher list, and curves using OpenSSL directly
-        if (!configuration.tls_min_version.empty() || !configuration.cipher_list.empty() || !configuration.curve_list.empty() || configuration.prefer_server_ciphers)
+        // Set cipher configuration using NATS API
+        // Note: The NATS C library doesn't support SSL context callbacks for advanced TLS configuration
+        // (TLS version, curves, cipher preference), so we use the available API functions
+        if (!configuration.cipher_list.empty())
         {
-            LOG_DEBUG(log, "Configuring advanced TLS settings - Version: {}, Cipher list: {}, Curve list: {}, Prefer server ciphers: {}",
-                     configuration.tls_min_version, configuration.cipher_list, configuration.curve_list, configuration.prefer_server_ciphers);
+            LOG_DEBUG(log, "Setting cipher list: {}", configuration.cipher_list);
+            // Set TLS 1.2 and below ciphers
+            natsOptions_SetCiphers(options.get(), configuration.cipher_list.c_str());
+            // Set TLS 1.3 cipher suites
+            natsOptions_SetCipherSuites(options.get(), configuration.cipher_list.c_str());
+        }
 
-            // Pass the configuration as closure to the SSL context callback
-            natsOptions_SetSSLCtx(options.get(), const_cast<NATSConfiguration*>(&configuration));
-            natsOptions_SetSSLCtxCB(options.get(), configureTLSContext, const_cast<NATSConfiguration*>(&configuration));
+        // Log warning if advanced TLS settings are configured but not supported
+        if (!configuration.tls_min_version.empty() || !configuration.curve_list.empty() || configuration.prefer_server_ciphers)
+        {
+            LOG_WARNING(log, "Advanced TLS settings (min version: {}, curves: {}, prefer server ciphers: {}) are configured but not supported by NATS C library. Only cipher configuration is applied.",
+                       configuration.tls_min_version, configuration.curve_list, configuration.prefer_server_ciphers);
         }
     }
 
     // use CLICKHOUSE_NATS_TLS_SECURE=0 env var to skip TLS verification of server cert
-    const char * val = std::getenv("CLICKHOUSE_NATS_TLS_SECURE"); // NOLINT(concurrency-mt-unsafe) // this is safe on Linux glibc/Musl, but potentially not safe on other platforms
-    std::string tls_secure = val == nullptr ? std::string("1") : std::string(val);
+    const char * val = ::std::getenv("CLICKHOUSE_NATS_TLS_SECURE"); // NOLINT(concurrency-mt-unsafe) // this is safe on Linux glibc/Musl, but potentially not safe on other platforms
+    ::std::string tls_secure = val == nullptr ? ::std::string("1") : ::std::string(val);
     if (tls_secure == "0")
     {
         natsOptions_SkipServerVerification(options.get(), true);
@@ -129,7 +79,7 @@ NATSConnection::NATSConnection(const NATSConfiguration & configuration_, LoggerP
     }
     else
     {
-        std::vector<const char *> servers(configuration.servers.size());
+        ::std::vector<const char *> servers(configuration.servers.size());
         for (size_t i = 0; i < configuration.servers.size(); ++i)
         {
             servers[i] = configuration.servers[i].c_str();
@@ -167,32 +117,32 @@ String NATSConnection::connectionInfoForLog() const
 
 bool NATSConnection::isConnected()
 {
-    std::lock_guard lock(mutex);
+    ::std::lock_guard lock(mutex);
     return isConnectedImpl(lock);
 }
 
 bool NATSConnection::isDisconnected()
 {
-    std::lock_guard lock(mutex);
+    ::std::lock_guard lock(mutex);
     return isDisconnectedImpl(lock);
 }
 
 bool NATSConnection::isClosed()
 {
-    std::lock_guard lock(mutex);
+    ::std::lock_guard lock(mutex);
     return isClosedImpl(lock);
 }
 
 bool NATSConnection::connect()
 {
-    std::lock_guard lock(mutex);
+    ::std::lock_guard lock(mutex);
     connectImpl(lock);
     return isConnectedImpl(lock);
 }
 
 void NATSConnection::disconnect()
 {
-    std::lock_guard lock(mutex);
+    ::std::lock_guard lock(mutex);
     disconnectImpl(lock);
 }
 
@@ -235,14 +185,14 @@ void NATSConnection::disconnectImpl(const Lock & connection_lock)
     natsConnection_Close(connection.get());
 }
 
-void NATSConnection::reconnectedCallback(natsConnection *, void * connection)
+void NATSConnection::reconnectedCallback(natsConnection *, void * closure)
 {
-    LOG_DEBUG(callback_logger, "Connection {} got reconnected to NATS server", static_cast<void*>(connection));
+    LOG_DEBUG(callback_logger, "Connection {} got reconnected to NATS server", static_cast<void*>(closure));
 }
 
-void NATSConnection::disconnectedCallback(natsConnection *, void * connection)
+void NATSConnection::disconnectedCallback(natsConnection *, void * closure)
 {
-    LOG_DEBUG(callback_logger, "Connection {} got disconnected from NATS server", connection);
+    LOG_DEBUG(callback_logger, "Connection {} got disconnected from NATS server", closure);
 }
 
 }

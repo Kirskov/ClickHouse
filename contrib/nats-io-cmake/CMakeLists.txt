@@ -19,6 +19,7 @@ elseif(WIN32)
 endif()
 
 add_definitions(-DNATS_HAS_TLS)
+add_definitions(-D_GNU_SOURCE)
 
 file(GLOB PS_SOURCES "${NATS_IO_SOURCE_DIR}/${NATS_PLATFORM_INCLUDE}/*.c")
 set(SRCS
@@ -33,6 +34,7 @@ set(SRCS
     "${NATS_IO_SOURCE_DIR}/jsm.c"
     "${NATS_IO_SOURCE_DIR}/kv.c"
     "${NATS_IO_SOURCE_DIR}/msg.c"
+    "${NATS_IO_SOURCE_DIR}/mtls_helper.c"
     "${NATS_IO_SOURCE_DIR}/nats.c"
     "${NATS_IO_SOURCE_DIR}/natstime.c"
     "${NATS_IO_SOURCE_DIR}/nkeys.c"
