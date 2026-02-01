@@ -73,10 +73,7 @@ namespace NATSSetting
     extern const NATSSettingsString nats_ca_cert_file;
     extern const NATSSettingsString nats_client_cert_file;
     extern const NATSSettingsString nats_client_key_file;
-    extern const NATSSettingsString nats_tls_min_version;
-    extern const NATSSettingsString nats_cipher_list;
-    extern const NATSSettingsString nats_curve_list;
-    extern const NATSSettingsBool nats_prefer_server_ciphers;
+    extern const NATSSettingsBool nats_tls_handshake_first;
 }
 
 static const uint32_t QUEUE_SIZE = 100000;

@@ -426,11 +426,19 @@ async def nats_connect_ssl(cluster, **connect_options):
         ssl_ctx = ssl.create_default_context()
         ssl_ctx.check_hostname = False
         ssl_ctx.verify_mode = ssl.CERT_NONE
+    handshake_first = getattr(cluster, 'nats_tls_handshake_first', False)
+    # With handshake_first, use nats:// scheme (plain TCP) and let tls_handshake_first
+    # handle the TLS upgrade. Using tls:// would cause double-TLS.
+    if handshake_first:
+        url = "nats://localhost:{}".format(cluster.nats_port)
+    else:
+        url = "tls://localhost:{}".format(cluster.nats_port)
     nc = await nats.connect(
-        "tls://localhost:{}".format(cluster.nats_port),
+        url,
         user=nats_user,
         password=nats_pass,
         tls=ssl_ctx,
+        tls_handshake_first=handshake_first,
         **connect_options,
     )
     return nc
@@ -3668,6 +3676,15 @@ class ClickHouseCluster:
                 self.nats_ssl_context.load_verify_locations(
                     p.join(self.nats_cert_dir, "ca", "ca-cert.pem")
                 )
+                # Load client certificate for mTLS if available
+                nats_client_cert = p.join(self.nats_cert_dir, "nats", "client-cert.pem")
+                nats_client_key = p.join(self.nats_cert_dir, "nats", "client-key.pem")
+                if p.exists(nats_client_cert) and p.exists(nats_client_key):
+                    self.nats_ssl_context.load_cert_chain(nats_client_cert, nats_client_key)
+                # Enable TLS handshake first if NATS server config uses it
+                nats_server_conf = p.join(self.nats_cert_dir, "nats", "nats-server.conf")
+                if p.exists(nats_server_conf):
+                    self.nats_tls_handshake_first = True
                 subprocess_check_call(self.base_nats_cmd + common_opts)
                 self.nats_docker_id = self.get_instance_docker_id("nats1")
                 self.up_called = True

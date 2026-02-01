@@ -1,23 +1,14 @@
 <clickhouse>
-    <!-- NATS mTLS configuration example -->
+    <!-- NATS mTLS configuration -->
     <nats>
         <!-- CA certificate for server verification -->
-        <caConfig>/etc/clickhouse-server/certs/ca-cert.pem</caConfig>
+        <caConfig>/etc/clickhouse-server/config.d/ca-cert.pem</caConfig>
 
         <!-- Client certificate and key for mTLS authentication -->
-        <certificateFile>/etc/clickhouse-server/certs/client-cert.pem</certificateFile>
-        <privateKeyFile>/etc/clickhouse-server/certs/client-key.pem</privateKeyFile>
+        <certificateFile>/etc/clickhouse-server/config.d/client-cert.pem</certificateFile>
+        <privateKeyFile>/etc/clickhouse-server/config.d/client-key.pem</privateKeyFile>
 
-        <!-- Minimum TLS protocol version (1.2 or 1.3) -->
-        <minProtocolVersion>1.3</minProtocolVersion>
-
-        <!-- Cipher list in OpenSSL notation (colon-separated) -->
-        <cipherList>ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:AES256-GCM-SHA384</cipherList>
-
-        <!-- Elliptic curve list (colon-separated) -->
-        <curveList>prime256v1:secp384r1</curveList>
-
-        <!-- Let server choose cipher/curve preference -->
-        <preferServerCiphers>true</preferServerCiphers>
+        <!-- TLS handshake before NATS INFO protocol -->
+        <tlsHandshakeFirst>true</tlsHandshakeFirst>
     </nats>
 </clickhouse>
