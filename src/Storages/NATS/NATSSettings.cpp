@@ -43,10 +43,7 @@ namespace ErrorCodes
     DECLARE(String, nats_ca_cert_file, "", "Path to CA certificate file for TLS verification", 0) \
     DECLARE(String, nats_client_cert_file, "", "Path to client certificate file for mTLS authentication", 0) \
     DECLARE(String, nats_client_key_file, "", "Path to client private key file for mTLS authentication", 0) \
-    DECLARE(String, nats_tls_min_version, "1.2", "Minimum TLS version (1.2 or 1.3)", 0) \
-    DECLARE(String, nats_cipher_list, "", "Allowed cipher list (in OpenSSL notation, colon-separated)", 0) \
-    DECLARE(String, nats_curve_list, "", "Allowed elliptic curve list (colon-separated)", 0) \
-    DECLARE(Bool, nats_prefer_server_ciphers, false, "Let server choose cipher/curve from client's list based on server preference", 0) \
+    DECLARE(Bool, nats_tls_handshake_first, false, "Perform TLS handshake before NATS INFO protocol exchange (required when server has handshake_first enabled)", 0) \
 
 #define OBSOLETE_NATS_SETTINGS(M, ALIAS) \
     MAKE_OBSOLETE(M, Char, nats_row_delimiter, '\0') \

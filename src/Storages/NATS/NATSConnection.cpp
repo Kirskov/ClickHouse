@@ -45,23 +45,11 @@ NATSConnection::NATSConnection(const NATSConfiguration & configuration_, LoggerP
                 configuration.client_key_file.c_str());
         }
 
-        // Set cipher configuration using NATS API
-        // Note: The NATS C library doesn't support SSL context callbacks for advanced TLS configuration
-        // (TLS version, curves, cipher preference), so we use the available API functions
-        if (!configuration.cipher_list.empty())
+        // Enable TLS handshake before INFO protocol exchange when server has handshake_first enabled
+        if (configuration.tls_handshake_first)
         {
-            LOG_DEBUG(log, "Setting cipher list: {}", configuration.cipher_list);
-            // Set TLS 1.2 and below ciphers
-            natsOptions_SetCiphers(options.get(), configuration.cipher_list.c_str());
-            // Set TLS 1.3 cipher suites
-            natsOptions_SetCipherSuites(options.get(), configuration.cipher_list.c_str());
-        }
-
-        // Log warning if advanced TLS settings are configured but not supported
-        if (!configuration.tls_min_version.empty() || !configuration.curve_list.empty() || configuration.prefer_server_ciphers)
-        {
-            LOG_WARNING(log, "Advanced TLS settings (min version: {}, curves: {}, prefer server ciphers: {}) are configured but not supported by NATS C library. Only cipher configuration is applied.",
-                       configuration.tls_min_version, configuration.curve_list, configuration.prefer_server_ciphers);
+            LOG_DEBUG(log, "Enabling TLS handshake first (before NATS INFO protocol)");
+            natsOptions_TLSHandshakeFirst(options.get());
         }
     }
 

@@ -122,10 +122,7 @@ StorageNATS::StorageNATS(
     auto nats_ca_cert_file = getContext()->getMacros()->expand((*nats_settings)[NATSSetting::nats_ca_cert_file]);
     auto nats_client_cert_file = getContext()->getMacros()->expand((*nats_settings)[NATSSetting::nats_client_cert_file]);
     auto nats_client_key_file = getContext()->getMacros()->expand((*nats_settings)[NATSSetting::nats_client_key_file]);
-    auto nats_tls_min_version = getContext()->getMacros()->expand((*nats_settings)[NATSSetting::nats_tls_min_version]);
-    auto nats_cipher_list = getContext()->getMacros()->expand((*nats_settings)[NATSSetting::nats_cipher_list]);
-    auto nats_curve_list = getContext()->getMacros()->expand((*nats_settings)[NATSSetting::nats_curve_list]);
-    auto nats_prefer_server_ciphers = (*nats_settings)[NATSSetting::nats_prefer_server_ciphers].value;
+    auto nats_tls_handshake_first = (*nats_settings)[NATSSetting::nats_tls_handshake_first].value;
 
     configuration =
     {
@@ -141,10 +138,7 @@ StorageNATS::StorageNATS(
         .ca_cert_file = nats_ca_cert_file.empty() ? getContext()->getConfigRef().getString("nats.caConfig", "") : nats_ca_cert_file,
         .client_cert_file = nats_client_cert_file.empty() ? getContext()->getConfigRef().getString("nats.certificateFile", "") : nats_client_cert_file,
         .client_key_file = nats_client_key_file.empty() ? getContext()->getConfigRef().getString("nats.privateKeyFile", "") : nats_client_key_file,
-        .tls_min_version = nats_tls_min_version.empty() ? getContext()->getConfigRef().getString("nats.minProtocolVersion", "1.2") : nats_tls_min_version,
-        .cipher_list = nats_cipher_list.empty() ? getContext()->getConfigRef().getString("nats.cipherList", "") : nats_cipher_list,
-        .curve_list = nats_curve_list.empty() ? getContext()->getConfigRef().getString("nats.curveList", "") : nats_curve_list,
-        .prefer_server_ciphers = nats_prefer_server_ciphers ? nats_prefer_server_ciphers : getContext()->getConfigRef().getBool("nats.preferServerCiphers", false)
+        .tls_handshake_first = nats_tls_handshake_first ? nats_tls_handshake_first : getContext()->getConfigRef().getBool("nats.tlsHandshakeFirst", false)
     };
 
     StorageInMemoryMetadata storage_metadata;
