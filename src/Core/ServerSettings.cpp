@@ -814,7 +814,7 @@ namespace
     :::
     )", 0) \
     DECLARE(UInt64, concurrent_threads_soft_limit_ratio_to_cores, 0, "Same as [`concurrent_threads_soft_limit_num`](#concurrent_threads_soft_limit_num), but with ratio to cores.", 0) \
-    DECLARE(String, concurrent_threads_scheduler, "fair_round_robin", R"(
+    DECLARE(String, concurrent_threads_scheduler, "max_min_fair", R"(
 The policy on how to perform a scheduling of CPU slots specified by `concurrent_threads_soft_limit_num` and `concurrent_threads_soft_limit_ratio_to_cores`. Algorithm used to govern how limited number of CPU slots are distributed among concurrent queries. Scheduler may be changed at runtime without server restart.
 
     Possible values:
@@ -1117,6 +1117,12 @@ The policy on how to perform a scheduling of CPU slots specified by `concurrent_
     )", 0) \
     DECLARE(UInt64, parts_killer_pool_size, 128, R"(
     Threads for cleanup of shared merge tree outdated threads. Only available in ClickHouse Cloud
+    )", 0) \
+    DECLARE(UInt64, snapshot_cleaner_period, 120, R"(
+    Period to completely remove snapshot parts for SharedMergeTree. Only available in ClickHouse Cloud
+    )", 0) \
+    DECLARE(UInt64, snapshot_cleaner_pool_size, 128, R"(
+    Threads for cleanup of shared merge tree snapshot cleaner threads. Only available in ClickHouse Cloud
     )", 0) \
     DECLARE(UInt64, keeper_multiread_batch_size, 10'000, R"(
     Maximum size of batch for MultiRead request to [Zoo]Keeper that support batching. If set to 0, batching is disabled. Available only in ClickHouse Cloud.
